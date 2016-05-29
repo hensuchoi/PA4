@@ -50,7 +50,7 @@ llvm::Value* VarDecl::Emit() {
 
     if (symTable->current != P) {
         llvm::BasicBlock *bb = irgen->GetBasicBlock();
-        llvm::Value *val = new llvm::AllocaInst(type, *vName, bb);
+        llvm::Value *val = new llvm::AllocaInst( IRGenerator::convertType(this->GetType(), irgen->GetContext()), *vName, bb);
         in.value = val;
         in.decl = this;
         in.flag = 0;
@@ -58,7 +58,7 @@ llvm::Value* VarDecl::Emit() {
     
      if (symTable->current == P){
         llvm::GlobalVariable *gvar = new llvm::GlobalVariable(
-            *irgen->GetOrCreateModule("module.bc"), type, F, llvm::GlobalValue::ExternalLinkage, llvm::Constant::getNullValue(type), *vName);
+            *irgen->GetOrCreateModule("module.bc"),  IRGenerator::convertType(this->GetType(), irgen->GetContext()), F, llvm::GlobalValue::ExternalLinkage, llvm::Constant::getNullValue( IRGenerator::convertType(this->GetType(), irgen->GetContext())), *vName);
         in.value = gvar;
         in.decl = this;
         in.flag = P;  
@@ -104,27 +104,28 @@ llvm::Value* FnDecl::Emit() {
        Type *tp = formals->Nth(i)->GetType();
        llvm::Type* type = IRGenerator::convertType(tp, irgen->GetContext());
        vType.push_back(type);
-       i = i + P;
+       i++;
     }
 
     llvm::ArrayRef<llvm::Type*> arrayV(vType);
     llvm::FunctionType *funcType = llvm::FunctionType::get(ty, arrayV, F);    
-    llvm::Function *func = llvm::cast<llvm::Function>(
-        irgen->GetOrCreateModule("foo.bc")->getOrInsertFunction(llvm::StringRef(this->id->GetName()), funcType));    
-    
-    irgen->SetFunction(func);
+    irgen->SetFunction(llvm::cast<llvm::Function>(
+        irgen->GetOrCreateModule("foo.bc")->getOrInsertFunction(llvm::StringRef(this->id->GetName()), funcType)));
     const llvm::Twine* name = new llvm::Twine(this->id->GetName());
-    llvm::BasicBlock *basicBlock = llvm::BasicBlock::Create( *irgen->GetContext(), *name, func);
+    llvm::BasicBlock *basicBlock = llvm::BasicBlock::Create( *irgen->GetContext(), *name, llvm::cast<llvm::Function>(
+        irgen->GetOrCreateModule("foo.bc")->getOrInsertFunction(llvm::StringRef(this->id->GetName()), funcType)));
     irgen->SetBasicBlock(basicBlock);
     int j = 0;
-    llvm::Function::arg_iterator iter = func->arg_begin();
-    while ( iter != func->arg_end()) {
+    llvm::Function::arg_iterator iter = llvm::cast<llvm::Function>(
+        irgen->GetOrCreateModule("foo.bc")->getOrInsertFunction(llvm::StringRef(this->id->GetName()), funcType))->arg_begin();
+    while ( iter != llvm::cast<llvm::Function>(
+        irgen->GetOrCreateModule("foo.bc")->getOrInsertFunction(llvm::StringRef(this->id->GetName()), funcType))->arg_end()) {
         formals->Nth(i)->Emit();
         iter->setName( formals->Nth(i)->getId());
         values in = symTable->lookupValue( formals->Nth(i)->getId());
         new llvm::StoreInst((&*iter), in.value, basicBlock);
 	iter++;
-	j = j + P;
+	j++;
     }
 
     body->Emit();

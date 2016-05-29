@@ -168,7 +168,7 @@ llvm::Value* ArithmeticExpr::Emit() {
             }
             if (op->IsOp("--")== true) {
                 llvm::Value *dec = llvm::BinaryOperator::CreateSub(right->Emit(), llvm::ConstantInt::get( irgen->GetIntType(), T), "int--", irgen->GetBasicBlock());
-                llvm::Value *storeInst = new llvm::StoreInst( llvm::BinaryOperator::CreateSub(right->Emit(), llvm::ConstantInt::get( irgen->GetIntType(), T), "int--", irgen->GetBasicBlock()), loc, irgen->GetBasicBlock());
+                llvm::Value *storeInst = new llvm::StoreInst(dec, loc, irgen->GetBasicBlock());
                (void)storeInst;
 
 	      return dec;
@@ -460,7 +460,7 @@ llvm::Value* EqualityExpr::Emit() {
         llvm::Value* res = llvm::CmpInst::Create(other, pred, left->Emit(), right->Emit(), str, irgen->GetBasicBlock());
         return res;
     }
-    else if (rightType->isFloatTy() == true)
+    else if (rightType->isFloatTy())
     {
          llvm::CmpInst::OtherOps other = llvm::FCmpInst::FCmp;
         llvm::CmpInst::Predicate pred = llvm::CmpInst::FCMP_FALSE;
@@ -489,10 +489,10 @@ llvm::Value* EqualityExpr::Emit() {
 llvm::Value* LogicalExpr::Emit() {
     Operator* op = this->op;
 
-    if (op->IsOp("||") == true) {
+    if (op->IsOp("||")) {
       return llvm::BinaryOperator::CreateOr(left->Emit(), right->Emit(), "", irgen->GetBasicBlock());
     }
-    else if (op->IsOp("&&") == true) {
+    else if (op->IsOp("&&")) {
       return  llvm::BinaryOperator::CreateAnd(left->Emit(), right->Emit(), "", irgen->GetBasicBlock());
     }
     
@@ -523,12 +523,12 @@ llvm::Value* AssignExpr::Emit() {
     Operator * op = this->op;
     int lenght = strlen(swizzle);
 
-    if (op->IsOp("=") == true) {
+    if (op->IsOp("=")) {
         if (lenght != ZERO) {
             llvm::Value* baseAdd = new llvm::LoadInst(lhsVal, "", irgen->GetBasicBlock());
             llvm::Constant* id;
 
-            if (rightType->isVectorTy() == true) {
+            if (rightType->isVectorTy()) {
 	     int i = ZERO;
                 while ( i < lenght) {
                     char c = swizzle[i];
@@ -549,7 +549,7 @@ llvm::Value* AssignExpr::Emit() {
                 }
             }
 
-            else if (rightType->isFloatTy() == true) {
+            else if (rightType->isFloatTy()) {
 	      int i = ZERO;
                 while ( i < lenght) {
                     char c = swizzle[i];
@@ -579,12 +579,12 @@ llvm::Value* AssignExpr::Emit() {
 	return right->Emit();
     }
 
-    else if (op->IsOp("+=") == true) {
+    else if (op->IsOp("+=")) {
         if(lenght != ZERO) {
             llvm::Value* baseAdd = new llvm::LoadInst(lhsVal, "", irgen->GetBasicBlock());
             llvm::Constant* id;
 
-            if (rightType->isVectorTy() == true) {
+            if (rightType->isVectorTy()) {
 	        int i = 0;
                 while ( i < lenght) {
                     char c = swizzle[i];
@@ -650,7 +650,7 @@ llvm::Value* AssignExpr::Emit() {
         }
     }
 
-    else if (op->IsOp("-=") == true) {
+    else if (op->IsOp("-=")) {
         if(lenght != ZERO) {
             llvm::Value* baseAdd = new llvm::LoadInst(lhsVal, "", irgen->GetBasicBlock());
             llvm::Constant* id;
@@ -679,7 +679,7 @@ llvm::Value* AssignExpr::Emit() {
                 }
             }
 
-            else if (rightType->isFloatTy() == true) {
+            else if (rightType->isFloatTy()) {
 	      int i = ZERO;
                 while (i < lenght) {
                     char option = swizzle[i];
@@ -715,14 +715,14 @@ llvm::Value* AssignExpr::Emit() {
             return res;
         }
 
-        else if (leftType->isIntegerTy()== true) {
+        else if (leftType->isIntegerTy()) {
             llvm::Value* res = llvm::BinaryOperator::CreateSub(left->Emit(), right->Emit(), "", irgen->GetBasicBlock());
             new llvm::StoreInst(res, lhsVal, irgen->GetBasicBlock());
             return res;
         }
     }
 
-    else if (op->IsOp("*=")== true) {
+    else if (op->IsOp("*=")) {
         if (lenght != ZERO) {
             llvm::Value* baseAdd = new llvm::LoadInst(lhsVal, "", irgen->GetBasicBlock());
             llvm::Constant* id;
@@ -950,6 +950,7 @@ llvm::Value* FieldAccess::Emit() {
 }
 
 llvm::Value* FieldAccess::getValue() {
+    //const char* c = field->GetName();
 
     if (VarExpr* v = dynamic_cast<VarExpr*>(base)) {
         return v->getValue();

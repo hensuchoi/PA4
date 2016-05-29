@@ -6,18 +6,28 @@ define i32 @main() {
 main:
   %x = alloca i32
   store i32 11, i32* %x
-  %x1 = load i32* %x
-  switch i32 %x1, label %default [
-  ]
+  br label %case1
 
-body:                                             ; No predecessors!
-  br label %default
+case:                                             ; No predecessors!
+  br label %case3
 
-footer:                                           ; No predecessors!
-  br label %case
+case1:                                            ; preds = %main
+  br label %default4
 
-default:                                          ; preds = %body, %main
-  br label %case
+case2:                                            ; No predecessors!
+  br label %footer
 
-case:                                             ; preds = %default, %footer
+case3:                                            ; preds = %case
+
+default:                                          ; No predecessors!
+
+default4:                                         ; preds = %case1
+
+default5:                                         ; No predecessors!
+
+default6:                                         ; No predecessors!
+
+footer:                                           ; preds = %case2
+
+footer7:                                          ; No predecessors!
 }

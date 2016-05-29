@@ -24,18 +24,17 @@ void Program::PrintChildren(int indentLevel) {
 }
 
 llvm::Value* Program::Emit() {
-    llvm::Module *mod = irgen->GetOrCreateModule("mod.bc");
-
+    llvm::Module *module = irgen->GetOrCreateModule("mod.bc");
     symTable->push();
-
-    for (int i = 0; i < decls->NumElements(); i++) {
+    int i =0;
+    while (i < decls->NumElements()) {
         Decl *d = decls->Nth(i);
         d->Emit();
+	i++;
     }
-
     symTable->pop();
-    mod->dump();
-    llvm::WriteBitcodeToFile(mod, llvm::outs());
+    module->dump();
+    llvm::WriteBitcodeToFile(module, llvm::outs());
 
     return NULL;
 }
@@ -54,23 +53,21 @@ void StmtBlock::PrintChildren(int indentLevel) {
 }
 
 llvm::Value* StmtBlock::Emit() {
-
     symTable->push();
-
-
-    for (int i = 0; i < decls->NumElements(); i++) {
-        decls->Nth(i);
+    int step = 0;
+    while (step < decls->NumElements()) {
+        decls->Nth(step);
+	step++;
     }
-
-    for (int i = 0; i < stmts->NumElements(); i++) {
-        if (!irgen->GetBasicBlock()->getTerminator()) {
+    int i =0;
+    while ( i < stmts->NumElements()) {
+        if (!irgen->GetBasicBlock()->getTerminator()) 
             stmts->Nth(i)->Emit();
-        }
+       
+       i++;	
     }
-
 
     symTable->pop();
-
     return NULL;
 
 }
@@ -86,7 +83,6 @@ void DeclStmt::PrintChildren(int indentLevel) {
 
 llvm::Value* DeclStmt::Emit() {
     decl->Emit();
-
     return NULL;
 }
 
@@ -113,40 +109,37 @@ void ForStmt::PrintChildren(int indentLevel) {
 }
 
 llvm::Value* ForStmt::Emit() {
-    llvm::Function *func = irgen->GetFunction();
     symTable->push();
     init->Emit();
 
-    llvm::BasicBlock *currBB = irgen->GetBasicBlock();
-
     llvm::Twine *footerTwine = new llvm::Twine("footer");
     llvm::Twine *stepTwine = new llvm::Twine("step");
-    llvm::Twine *bodyTwine = new llvm::Twine("body");
+   // llvm::Twine *bodyTwine = new llvm::Twine("body");
 
-    llvm::BasicBlock* footerBB = llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction());
-    llvm::BasicBlock* stepBB = llvm::BasicBlock::Create(*irgen->GetContext(), *stepTwine, irgen->GetFunction());
-    llvm::BasicBlock* bodyBB = llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction());
+    //llvm::BasicBlock* footerBB = llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction());
+    //llvm::BasicBlock* stepBB = llvm::BasicBlock::Create(*irgen->GetContext(), *stepTwine, irgen->GetFunction());
+    //llvm::BasicBlock* bodyBB = llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction());
 
-    llvm::BranchInst::Create(bodyBB, footerBB, test->Emit(), currBB);
+    llvm::BranchInst::Create( llvm::BasicBlock::Create(*irgen->GetContext(), "body", irgen->GetFunction()), llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()), test->Emit(), irgen->GetBasicBlock());
 
-    bodyBB->moveAfter(irgen->GetBasicBlock());
-    irgen->SetBasicBlock(bodyBB);
+     llvm::BasicBlock::Create(*irgen->GetContext(), "body", irgen->GetFunction())->moveAfter(irgen->GetBasicBlock());
+    irgen->SetBasicBlock( llvm::BasicBlock::Create(*irgen->GetContext(), "body", irgen->GetFunction()));
     body->Emit();
     if(irgen->GetBasicBlock()->getTerminator() == NULL)
-        llvm::BranchInst::Create(stepBB, irgen->GetBasicBlock());
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *stepTwine, irgen->GetFunction()), irgen->GetBasicBlock());
 
-    stepBB->moveAfter(irgen->GetBasicBlock());
-    irgen->SetBasicBlock(stepBB);
+    llvm::BasicBlock::Create(*irgen->GetContext(), *stepTwine, irgen->GetFunction())->moveAfter(irgen->GetBasicBlock());
+    irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *stepTwine, irgen->GetFunction()));
     step->Emit();
     if(irgen->GetBasicBlock()->getTerminator() == NULL) 
-        llvm::BranchInst::Create(bodyBB, footerBB, test->Emit(), irgen->GetBasicBlock());
+        llvm::BranchInst::Create( llvm::BasicBlock::Create(*irgen->GetContext(), "body", irgen->GetFunction()), llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()), test->Emit(), irgen->GetBasicBlock());
 
-    footerBB->moveAfter(irgen->GetBasicBlock());
+    llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction())->moveAfter(irgen->GetBasicBlock());
 
     if(irgen->GetBasicBlock()->getTerminator() == NULL)
-        llvm::BranchInst::Create(stepBB, irgen->GetBasicBlock());
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *stepTwine, irgen->GetFunction()), irgen->GetBasicBlock());
 
-    irgen->SetBasicBlock(footerBB); 
+    irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction())); 
     symTable->pop();
 
     return NULL;
@@ -158,42 +151,40 @@ void WhileStmt::PrintChildren(int indentLevel) {
 }
 
 llvm::Value* WhileStmt::Emit() {
-    llvm::Function *func = irgen->GetFunction();
-    llvm::BasicBlock *currBB = irgen->GetBasicBlock();
-
+   // llvm::Function *func = irgen->GetFunction();
     llvm::Twine *testTwine = new llvm::Twine("test");
     llvm::Twine *footerTwine = new llvm::Twine("footer");
     llvm::Twine *bodyTwine = new llvm::Twine("body");
 
-    llvm::BasicBlock* testBB = llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction());
-    llvm::BasicBlock* footerBB = llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction());
-    llvm::BasicBlock* bodyBB = llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction());
+  //  llvm::BasicBlock* testBB = llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction());
+   // llvm::BasicBlock* footerBB = llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction());
+   // llvm::BasicBlock* bodyBB = llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction());
     
     symTable->push();
 
-    if (currBB->getTerminator() == NULL) 
-        llvm::BranchInst::Create(testBB, currBB);
+    if (irgen->GetBasicBlock()->getTerminator() == NULL) 
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction()), irgen->GetBasicBlock());
 
-    testBB->moveAfter(irgen->GetBasicBlock());
+    llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction())->moveAfter(irgen->GetBasicBlock());
 
-    irgen->SetBasicBlock(testBB);
+    irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction()));
 
-    if (testBB->getTerminator() == NULL) 
-        llvm::BranchInst::Create(bodyBB, footerBB, test->Emit(), testBB);
+    if (llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction())->getTerminator() == NULL) 
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction()), llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()), test->Emit(), llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction()));
 
-    bodyBB->moveAfter(testBB);
-    irgen->SetBasicBlock(bodyBB);
+    llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction())->moveAfter(llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction()));
+    irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction()));
     body->Emit();
 
-    if(bodyBB->getTerminator() == NULL) 
-        llvm::BranchInst::Create(testBB, bodyBB);
+    if(llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction())->getTerminator() == NULL) 
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction()), llvm::BasicBlock::Create(*irgen->GetContext(), *bodyTwine, irgen->GetFunction()));
 
-    footerBB->moveAfter(irgen->GetBasicBlock());
+    llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction())->moveAfter(irgen->GetBasicBlock());
 
     if(irgen->GetBasicBlock()->getTerminator() == NULL)
-        llvm::BranchInst::Create(testBB, irgen->GetBasicBlock());
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *testTwine, irgen->GetFunction()), irgen->GetBasicBlock());
 
-    irgen->SetBasicBlock(footerBB);
+    irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()));
     symTable->pop();
 
     return NULL;
@@ -214,34 +205,34 @@ void IfStmt::PrintChildren(int indentLevel) {
 llvm::Value* IfStmt::Emit() {
     
     symTable->push();
-    llvm::Function *func = irgen->GetFunction();
+   // llvm::Function *func = irgen->GetFunction();
 
     llvm::Twine *footerTwine = new llvm::Twine("if_footer");
     llvm::Twine *elseTwine = new llvm::Twine("else");
     llvm::Twine *thenTwine = new llvm::Twine("then");
 
-    llvm::BasicBlock *headerBB = irgen->GetBasicBlock();
-    llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(*irgen->GetContext(), *thenTwine, irgen->GetFunction());
+//    llvm::BasicBlock *headerBB = irgen->GetBasicBlock();
+    //llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(*irgen->GetContext(), *thenTwine, irgen->GetFunction());
     llvm::BasicBlock *elseBB = NULL;
 
     if (elseBody) {
         elseBB = llvm::BasicBlock::Create(*irgen->GetContext(), *elseTwine, irgen->GetFunction());
     }
 
-    llvm::BasicBlock *footerBB = llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction());
+   // llvm::BasicBlock *footerBB = llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction());
 
-    llvm::BranchInst::Create(thenBB, elseBody ? elseBB : footerBB, test->Emit(), headerBB);
+    llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *thenTwine, irgen->GetFunction()), elseBody ? elseBB : llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()), test->Emit(), irgen->GetBasicBlock());
 
-    thenBB->moveAfter(headerBB);
-    irgen->SetBasicBlock(thenBB);
+    llvm::BasicBlock::Create(*irgen->GetContext(), *thenTwine, irgen->GetFunction())->moveAfter(irgen->GetBasicBlock());
+    irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *thenTwine, irgen->GetFunction()));
     body->Emit();
 
-    if (!thenBB->getTerminator()) {
-        llvm::BranchInst::Create(footerBB, thenBB);
+    if (!llvm::BasicBlock::Create(*irgen->GetContext(), *thenTwine, irgen->GetFunction())->getTerminator()) {
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()), llvm::BasicBlock::Create(*irgen->GetContext(), *thenTwine, irgen->GetFunction()));
     }
 
     if (!irgen->GetBasicBlock()->getTerminator()) {
-        llvm::BranchInst::Create(footerBB, irgen->GetBasicBlock());
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()), irgen->GetBasicBlock());
     }
 
     if (elseBody) {
@@ -250,20 +241,19 @@ llvm::Value* IfStmt::Emit() {
         elseBody->Emit();
 
         if (!elseBB->getTerminator()) {
-            llvm::BranchInst::Create(footerBB, elseBB);
+            llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()), elseBB);
         }
 
         irgen->SetBasicBlock(elseBB);
     }
 
-    footerBB->moveAfter(irgen->GetBasicBlock());
+    llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction())->moveAfter(irgen->GetBasicBlock());
 
     if (!irgen->GetBasicBlock()->getTerminator()) {
-        llvm::BranchInst::Create(footerBB, irgen->GetBasicBlock());
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()), irgen->GetBasicBlock());
     }
 
-    irgen->SetBasicBlock(footerBB);
-
+    irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()));
     symTable->pop();
 
     return NULL;
@@ -280,14 +270,14 @@ void ReturnStmt::PrintChildren(int indentLevel) {
 }
 
 llvm::Value* ReturnStmt::Emit() {
-    llvm::BasicBlock* bb = irgen->GetBasicBlock();
+  //  llvm::BasicBlock* bb = irgen->GetBasicBlock();
     if (expr ) {
         llvm::Value* rval = expr->Emit();
-        llvm::ReturnInst::Create(*irgen->GetContext(), rval, bb);
+        llvm::ReturnInst::Create(*irgen->GetContext(), rval, irgen->GetBasicBlock());
     }
 
     else {
-        llvm::ReturnInst::Create(*irgen->GetContext(), bb);
+        llvm::ReturnInst::Create(*irgen->GetContext(), irgen->GetBasicBlock());
     }
 
     return NULL;
@@ -326,37 +316,37 @@ void SwitchStmt::PrintChildren(int indentLevel) {
 
 
 llvm::Value* SwitchStmt::Emit() {
-    llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(*irgen->GetContext(), "body", irgen->GetFunction());
-    llvm::BasicBlock *footerBB = llvm::BasicBlock::Create(*irgen->GetContext(), "footer", irgen->GetFunction());
-    llvm::BasicBlock *defaultBB = llvm::BasicBlock::Create(*irgen->GetContext(), "default", irgen->GetFunction());
-    llvm::BasicBlock *caseBB = llvm::BasicBlock::Create(*irgen->GetContext(), "case", irgen->GetFunction());
+//    llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(*irgen->GetContext(), "body", irgen->GetFunction());
+ //   llvm::BasicBlock *footerBB = llvm::BasicBlock::Create(*irgen->GetContext(), "footer", irgen->GetFunction());
+   // llvm::BasicBlock *defaultBB = llvm::BasicBlock::Create(*irgen->GetContext(), "default", irgen->GetFunction());
+   // llvm::BasicBlock *caseBB = llvm::BasicBlock::Create(*irgen->GetContext(), "case", irgen->GetFunction());
 
-    llvm::SwitchInst* sw = llvm::SwitchInst::Create(expr->Emit(), defaultBB, cases->NumElements(), irgen->GetBasicBlock());	
+  //  llvm::SwitchInst* sw = llvm::SwitchInst::Create(expr->Emit(), llvm::BasicBlock::Create(*irgen->GetContext(), "default", irgen->GetFunction()), cases->NumElements(), irgen->GetBasicBlock());	
    int i =0;
     while (i < cases->NumElements()) {
         if (dynamic_cast<Case*>(cases->Nth(i))) {
-             irgen->SetBasicBlock(caseBB);
-             llvm::Value* label = dynamic_cast<Case*>(cases->Nth(i))->returnLabel()->Emit();
-             llvm::ConstantInt *constLabel = llvm::cast<llvm::ConstantInt>(label);
-             llvm::BranchInst::Create(caseBB, irgen->GetBasicBlock());
+             irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), "case", irgen->GetFunction()));
+           //  llvm::Value* label = dynamic_cast<Case*>(cases->Nth(i))->returnLabel()->Emit();
+           //  llvm::ConstantInt *constLabel = llvm::cast<llvm::ConstantInt>(label);
+             llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), "case", irgen->GetFunction()), irgen->GetBasicBlock());
              cases->Nth(i)->Emit();
         }
 
         else if (dynamic_cast<Default*>(cases->Nth(i))) {
        
-             irgen->SetBasicBlock(defaultBB);
-             llvm::BranchInst::Create(defaultBB, irgen->GetBasicBlock());
+             irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), "default", irgen->GetFunction()));
+             llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), "default", irgen->GetFunction()), irgen->GetBasicBlock());
              cases->Nth(i)->Emit();
 
         }
 	i++;
     }
 
-    if (defaultBB->getTerminator() == NULL) {
-        llvm::BranchInst::Create(footerBB, defaultBB);
+    if (llvm::BasicBlock::Create(*irgen->GetContext(), "default", irgen->GetFunction())->getTerminator() == NULL) {
+        llvm::BranchInst::Create(llvm::BasicBlock::Create(*irgen->GetContext(), "footer", irgen->GetFunction()), llvm::BasicBlock::Create(*irgen->GetContext(), "default", irgen->GetFunction()));
     }
 
-    irgen->SetBasicBlock(footerBB);
+    irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), "footer", irgen->GetFunction()));
     return NULL;
 }
 
