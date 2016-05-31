@@ -109,6 +109,7 @@ void ForStmt::PrintChildren(int indentLevel) {
 }
 
 llvm::Value* ForStmt::Emit() {
+    /*
     symTable->push();
     init->Emit();
 
@@ -136,7 +137,33 @@ llvm::Value* ForStmt::Emit() {
 
     irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction())); 
     symTable->pop();
+    */
+    llvm::LLVMContext *c = irgen->GetContext();
+    llvm::Function* f = irgen->GetFunction();
+    llvm::BasicBlock *headB = llvm::BasicBlock::Create(*c, "head", f);
+    llvm::BasicBlock *stepB = llvm::BasicBlock::Create(*c, "step", f);
+    llvm::BasicBlock *bodyB = llvm::BasicBlock::Create(*c, "body", f);
+    llvm::BasicBlock *footB = llvm::BasicBlock::Create(*c, "foot", f);
 
+    init->Emit();
+    llvm::BranchInst::Create(headB,irgen->GetBasicBlock());
+    irgen->SetBasicBlock(headB);
+     
+    llvm::Value* value = test->Emit();
+    llvm::BranchInst::Create(bodyB, footB, value, headB);
+    symTable->push();
+    breakBB->push_back(footB);
+    continueBB->push_back(stepB);
+    irgen->SetBasicBlock(bodyB);
+    body->Emit();
+    llvm::BranchInst::Create(stepB, irgen->GetBasicBlock());
+    symTable->pop();
+    irgen->SetBasicBlock(stepB);
+    step->Emit();
+    llvm::BranchInst::Create(headB, stepB);
+    irgen->SetBasicBlock(footB);
+    breakBB->pop_back();
+    continueBB->pop_back();
     return NULL;
 }
 
@@ -146,6 +173,7 @@ void WhileStmt::PrintChildren(int indentLevel) {
 }
 
 llvm::Value* WhileStmt::Emit() {
+    /*
     llvm::Twine *testTwine = new llvm::Twine("test");
     llvm::Twine *footerTwine = new llvm::Twine("footer");
     llvm::Twine *bodyTwine = new llvm::Twine("body");
@@ -175,7 +203,22 @@ llvm::Value* WhileStmt::Emit() {
 
     irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()));
     symTable->pop();
-
+    */
+    llvm::LLVMContext *c = irgen->GetContext();
+    llvm::Function *f = irgen->GetFunction();
+    llvm::BasicBlock *headB = llvm::BasicBlock::Create(*c, "head", f);
+    llvm::BasicBlock *bodyB = llvm::BasicBlock::Create(*c, "body", f);
+    llvm::BasicBlock *footB = llvm::BasicBlock::Create(*c, "foot", f);
+    //symTable->push();
+    llvm::BranchInst::Create(headB, irgen->GetBasicBlock());
+    irgen->SetBasicBlock(headB);
+    llvm::Value* testV = test->Emit();
+    llvm::BranchInst::Create(bodyB, footB, testV, headB);
+    irgen->SetBasicBlock(footB);
+    body->Emit();
+    llvm::BranchInst::Create(headB,footB);
+    irgen->SetBasicBlock(footB);
+    //symTable->pop();
     return NULL;
 }
 
@@ -192,7 +235,7 @@ void IfStmt::PrintChildren(int indentLevel) {
 }
 
 llvm::Value* IfStmt::Emit() {
-    
+    /* 
     symTable->push();
 
     llvm::Twine *footerTwine = new llvm::Twine("if_footer");
@@ -239,6 +282,30 @@ llvm::Value* IfStmt::Emit() {
 
     irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), *footerTwine, irgen->GetFunction()));
     symTable->pop();
+*/
+  llvm::Function *function = irgen->GetFunction();
+  llvm::LLVMContext *c = irgen->GetContext();
+  llvm::Value* valueB = test->Emit();
+  llvm::BasicBlock* footB = llvm::BasicBlock::Create(*c, "Foot", function);
+  llvm::BasicBlock* elseB = NULL;
+  if(elseBody != NULL)
+    elseB = llvm::BasicBlock::Create(*c, "else", function);
+  llvm::BasicBlock* thenB = llvm::BasicBlock::Create(*c, "then", function);
+  llvm::BranchInst::Create(thenB,elseBody?elseB:footB,valueB, irgen->GetBasicBlock());
+  symTable->push();
+  irgen->SetBasicBlock(thenB);
+  body->Emit();
+  symTable->pop();
+  llvm::BranchInst::Create(footB, thenB);
+  if (elseBody != NULL) {
+
+    symTable->push();
+    irgen->SetBasicBlock(elseB);
+    elseBody->Emit();
+    llvm::BranchInst::Create(footB, elseB);
+    symTable->pop();
+    irgen->SetBasicBlock(footB);
+  }
 
     return NULL;
 }
@@ -299,7 +366,7 @@ void SwitchStmt::PrintChildren(int indentLevel) {
 
 
 llvm::Value* SwitchStmt::Emit() {
-   int i =0;
+    /*int i =0;
     while (i < cases->NumElements()) {
         if (dynamic_cast<Case*>(cases->Nth(i))) {
              irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), "case", irgen->GetFunction()));
@@ -322,7 +389,41 @@ llvm::Value* SwitchStmt::Emit() {
     }
 
     irgen->SetBasicBlock(llvm::BasicBlock::Create(*irgen->GetContext(), "footer", irgen->GetFunction()));
-    return NULL;
+    return NULL;*/
+/*
+    int i = 0;
+    llvm::LLVMContext *c = irgen->GetContext();
+    llvm::Function *f = irgen->GetFunction();
+    llvm::BasicBlock *defaultB = llvm::BasicBlock::Create(*c,"default");
+    llvm::BasicBlock *footB = llvm::BasicBlock::Create(*c, "foot");
+    breakBB->push_back(footB);
+    llvm::SwitchInst *switchI = llvm::SwitchInst::Create(expr->Emit(), defaultB, cases->NumElements(), irgen->GetBasicBlock());
+    irgen->GetBasicBlock();
+    while (i < cases->NumElements()) {
+      if (dynamic_cast<Case*>(cases->Nth(i))) {
+        llvm::BasicBlock *caseB = llvm::BasicBlock::Create(*c, "case", f);
+        llvm::Value* cond = dynamic_cast<Case*>(cases->Nth(i))->returnLabel()->Emit();
+        switchI->addCase((llvm::ConstantInt*)cond, caseB);
+        if (irgen->GetBasicBlock()->getTerminator() == NULL)
+          llvm::BranchInst::Create(caseB, irgen->GetBasicBlock());
+        irgen->SetBasicBlock(caseB);
+        ((SwitchLabel*)cases->Nth(i))->Emit();
+      } else if (dynamic_cast<Default*>(cases->Nth(i))) {
+        if (irgen->GetBasicBlock()->getTerminator() == NULL)
+          llvm::BranchInst::Create(defaultB, irgen->GetBasicBlock());
+        irgen->SetBasicBlock(defaultB);
+        ((SwitchLabel*)cases->Nth(i))->Emit();
+      } else {
+        cases->Nth(i)->Emit();
+      }
+      i++;
+    }
+    if (irgen->GetBasicBlock()->getTerminator() == NULL)
+      llvm::BranchInst::Create(footB,defaultB);
+    breakBB->pop_back();
+    irgen->SetBasicBlock(footB);
+    return NULL;    */
+  
 }
 
 llvm::Value* BreakStmt::Emit() {
